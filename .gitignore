@@ -24,6 +24,9 @@ wheels/
 venv/
 env/
 ENV/
+.venv/
+.env
+rds-venv/
 
 # IDE
 .idea/
