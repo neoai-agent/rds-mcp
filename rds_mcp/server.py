@@ -26,10 +26,10 @@ class RDSCMPServer:
     def run_mcp_blocking(self):
         """
         Runs the FastMCP server. This method is blocking and should be called
-        after any necessary asynchronous initialization (like self.client.initialize_ecs)
+        after any necessary asynchronous initialization (like self.client.initialize_rds)
         has been completed in a separate AnyIO event loop.
         """
-        # self.client.initialize_ecs() is assumed to have been awaited
+        # self.client.initialize_rds() is assumed to have been awaited
         # before this synchronous method is called.
         
         # The FastMCP server's run method will internally call anyio.run()
