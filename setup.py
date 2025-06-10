@@ -14,6 +14,16 @@ setup(
         "structlog>=23.1.0",
         "litellm>=1.45.0",
     ],
+    extras_require={
+        "dev": [
+            "pytest>=7.0.0",
+            "black>=23.0.0",
+            "isort>=5.0.0",
+            "ruff>=0.1.0",
+            "build>=1.0.0",
+            "twine>=4.0.0",
+        ],
+    },
     entry_points={
         'console_scripts': [
             'rds-mcp=rds_mcp.cli:main',  # This assumes you have a cli.py with a main() function
