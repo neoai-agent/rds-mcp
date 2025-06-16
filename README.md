@@ -16,37 +16,7 @@ pipx run git+https://github.com/yourusername/rds-mcp.git
 
 ## Quick Start
 
-1. Set up your environment variables:
-
-   **Method: Using .env file**
-   ```bash
-   # Create a .env file in your project directory
-   cat > .env << EOL
-   # AWS Credentials
-   AWS_ACCESS_KEY_ID=your-aws-access-key-here
-   AWS_SECRET_ACCESS_KEY=your-aws-secret-key-here
-   AWS_REGION=your-aws-region-here
-   
-   # OpenAI Credentials
-   OPENAI_API_KEY=your-openai-api-key-here
-   
-   # Optional: Model Configuration
-   MODEL=openai/gpt-4o-mini
-   EOL
-   ```
-
-2. Create `agent.yaml`:
-```yaml
-- name: "RDS Agent"
-  description: "Agent to manage and monitor Amazon RDS instances"
-  mcp_servers: 
-    - name: "RDS MCP Server"
-      args: ["--access-key=${AWS_ACCESS_KEY_ID}", "--secret-access-key=${AWS_SECRET_ACCESS_KEY}", "--region=${AWS_REGION}", "--openai_api_key=${OPENAI_API_KEY}"]
-      command: "rds-mcp"
-  system_prompt: "You are a DevOps engineer specializing in Amazon RDS management and monitoring. You can use the tools provided to analyze RDS instance performance, monitor metrics, and manage database operations. Use the tools precisely to gather valuable information about RDS instances and their performance."
-```
-
-3. Run the server:
+1. Run the server:
 ```bash
 rds-mcp --access-key "YOUR_AWS_ACCESS_KEY" --secret-access-key "YOUR_AWS_SECRET_KEY" --region "YOUR_AWS_REGION" --openai_api_key "YOUR_OPENAI_API_KEY"
 ```
