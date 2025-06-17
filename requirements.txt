@@ -11,18 +11,9 @@ botocore>=1.29.0
 # Date and time handling
 python-dateutil>=2.8.2
 
-# Logging and monitoring
-structlog>=23.1.0
-
-# Type checking
-mypy>=1.5.0
-types-boto3>=1.0.0
-
 # Development dependencies
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
 pytest-cov>=4.1.0
 black>=23.7.0
 isort>=5.12.0
-flake8>=6.1.0
-pre-commit>=3.3.0 
