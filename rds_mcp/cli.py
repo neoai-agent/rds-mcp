@@ -25,19 +25,27 @@ async def perform_async_initialization(server_obj: RDSCMPServer) -> None:
 
 def main() -> int:
     """Main entry point for the CLI."""
-    parser = argparse.ArgumentParser(description="RDS MCP Server")
+    parser = argparse.ArgumentParser(description="ECS MCP Server")
     parser.add_argument("--host", default="localhost", type=str, help="Custom host for the server")
     parser.add_argument("--port", default=8000, type=int, help="Custom port for the server")
     parser.add_argument("--model", default="openai/gpt-4o-mini", type=str, help="OpenAI model to use")
     parser.add_argument("--openai-api-key", type=str, required=True, help="OpenAI API key")
-    parser.add_argument("--access-key", type=str, required=True, help="AWS Access Key")
-    parser.add_argument("--secret-access-key", type=str, required=True, help="AWS Secret Access Key")
-    parser.add_argument("--region", default="ap-southeast-1", type=str, required=True, help="AWS Region")
+    parser.add_argument("--access-key", type=str, help="AWS Access Key (optional when using IAM roles)")
+    parser.add_argument("--secret-access-key", type=str, help="AWS Secret Access Key (optional when using IAM roles)")
+    parser.add_argument("--region", default="us-east-1", type=str, required=True, help="AWS Region")
 
     args = parser.parse_args()
 
-    if not args.openai_api_key or not args.access_key or not args.secret_access_key or not args.region:
-        logger.error("OpenAI API key, AWS Access Key, and AWS Secret Access Key are required")
+    if not args.openai_api_key or not args.region:
+        logger.error("Missing required arguments. Please provide openai-api-key and region.")
+        return 1
+
+    # Check if both or neither AWS credentials are provided
+    has_access_key = bool(args.access_key)
+    has_secret_key = bool(args.secret_access_key)
+    
+    if has_access_key != has_secret_key:
+        logger.error("Both access-key and secret-access-key must be provided together, or neither for IAM role usage.")
         return 1
 
     try:

@@ -67,12 +67,10 @@ class RDSCMPServer:
         Returns metrics for the last 60 minutes
         """
         try:
-            # Find the best matching RDS instance name
             matching_instance = await self.client.find_matching_rds_instances(database_name)
             if not matching_instance:
                 return {"status": "error", "message": "No matching RDS instance found"}
             
-            # Use the correct instance name
             database_name = matching_instance
             
             metrics = [
@@ -110,7 +108,6 @@ class RDSCMPServer:
                     EndTime=datetime.now(timezone.utc)
                 )
                 
-                # Get the most recent value
                 values = response['MetricDataResults'][0]['Values']
                 results[metric['name']] = values[-1] if values else None
             
@@ -138,14 +135,11 @@ class RDSCMPServer:
     async def get_database_queries(self, database_name: str, period_minutes: int = 60):
         """Get slow query logs from RDS database (supports MySQL and PostgreSQL)"""
         try:
-            # Find the best matching RDS instance name
             matching_instance = await self.client.find_matching_rds_instances(database_name)
             if not matching_instance:
                 return {"status": "error", "message": "No matching RDS instance found"}
             
-            # Use the correct instance name
             database_name = matching_instance
-            # Calculate time threshold
             time_threshold = datetime.now(timezone.utc) - timedelta(minutes=period_minutes)
             
             db_instance = self.client.rds_client.describe_db_instances(DBInstanceIdentifier=database_name)['DBInstances'][0]
@@ -174,14 +168,12 @@ class RDSCMPServer:
 
                 for line in ''.join(log_data).split('\n'):
                     line = line.strip()
-                    #print(f'lines: {line}')
 
                     if line.startswith('# Time:'):
                         if current_entry.get('query_time') and sql_lines:
                                 current_entry['sql'] = ' '.join(sql_lines).strip()
 
                                 if "IN (" in current_entry['sql'].upper():
-                                    # Handle IN clause truncation
                                     parts = current_entry['sql'].split("IN (")
                                     before_in = parts[0] + "IN ("
                                     in_clause = parts[1].split(")", 1)
@@ -255,7 +247,6 @@ class RDSCMPServer:
                         sql_lines.append(line)
                     
                     elif capture_sql and line == '':
-                        # End of query
                         capture_sql = False
 
             elif 'postgres' in engine:
@@ -299,22 +290,15 @@ class RDSCMPServer:
                         if not response.get('AdditionalDataPending', False):
                             break
                     full_log = ''.join(log_data)
-                    #print(full_log)
-                    # Parse multi-line entries
                     buffer = []
                     for line in full_log.split('\n'):
                         line = line.strip()
-                        #print(line)
                         if timestamp_pattern.match(line):
                             if buffer:
                                 entry = '\n'.join(buffer)
-                                #print(f'Raw entry: {entry}')
                                 match = postgres_log_regex.search(entry)
-                                #print(f'matching : {match}')
                                 if match:
                                     duration, sql = match.groups()
-                                    #print(f"Match groups: {match.groups() if match else 'No match'}")
-                                    #print(f'sql_text: {sql}')
                                     if "IN (" in sql.upper():
                                         parts = sql.split("IN (")
                                         before_in = parts[0] + "IN ("

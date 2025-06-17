@@ -1,10 +1,8 @@
 from typing import Dict, List, Any
 import boto3
-from botocore.exceptions import ClientError, NoCredentialsError
 import logging
 import json
 from datetime import datetime, timezone
-from botocore.exceptions import NoCredentialsError
 from litellm import completion
 from dataclasses import dataclass
 
@@ -35,28 +33,26 @@ class AWSClientManager:
     def get_aws_credentials(self):
         """Get AWS credentials with proper error handling"""
         if not self.config.access_key or not self.config.secret_access_key:
-            logger.warning("AWS credentials not found in environment variables. Trying default AWS credentials configuration.")
-            try:
-                session = boto3.Session()
-                credentials = session.get_credentials()
-                if credentials:
-                    return credentials.access_key, credentials.secret_key
-                raise NoCredentialsError()
-            except Exception as e:
-                logger.error(f"Failed to get AWS credentials: {str(e)}")
-                raise NoCredentialsError()
+            logger.info("No explicit AWS credentials provided. Using default AWS credential chain (IAM roles, environment variables, etc.)")
+            return None, None
         return self.config.access_key, self.config.secret_access_key
-
+    
     def get_rds_client(self, region_name=None):
         """Get or create RDS client."""
         if not self._rds:
             try:
                 access_key, secret_key = self.get_aws_credentials()
-                self._rds = boto3.client('rds',
-                    region_name=region_name or self.config.region_name,
-                    aws_access_key_id=access_key,
-                    aws_secret_access_key=secret_key
-                )
+                client_kwargs = {
+                    'region_name': region_name or self.config.region_name
+                }
+                
+                if access_key and secret_key:
+                    client_kwargs.update({
+                        'aws_access_key_id': access_key,    
+                        'aws_secret_access_key': secret_key
+                    })
+                
+                self._rds = boto3.client('rds', **client_kwargs)
             except Exception as e:
                 logger.error(f"Failed to create RDS client: {str(e)}")
                 raise
@@ -67,11 +63,17 @@ class AWSClientManager:
         if not self._cloudwatch:
             try:
                 access_key, secret_key = self.get_aws_credentials()
-                self._cloudwatch = boto3.client('cloudwatch',
-                    region_name=region_name or self.config.region_name,
-                    aws_access_key_id=access_key,
-                    aws_secret_access_key=secret_key
-                )
+                client_kwargs = {
+                    'region_name': region_name or self.config.region_name
+                }
+                
+                if access_key and secret_key:
+                    client_kwargs.update({
+                        'aws_access_key_id': access_key,
+                        'aws_secret_access_key': secret_key
+                    })
+                
+                self._cloudwatch = boto3.client('cloudwatch', **client_kwargs)
             except Exception as e:
                 logger.error(f"Failed to create CloudWatch client: {str(e)}")
                 raise
@@ -121,7 +123,6 @@ class RDSClient:
             "total_rds_instances": len(response['DBInstances'])
             }
 
-            # Update cache
             self._rds_instances_cache["data"] = formatted_response
             self._rds_instances_cache["timestamp"] = current_time
 
@@ -145,11 +146,9 @@ class RDSClient:
             logger.info(f"Using cached rds instances result for {cache_key}")
             return self._name_matching_cache[cache_key]
         
-        # Get all available RDS instances
         available_instances = await self.get_available_rds_instances()
         rds_instances = available_instances['rds_instances']
 
-        # Call LLM to find the best match
         prompt = f"""
         Given the database name: {database_name}, please find the most likely RDS instance name from the following list: {rds_instances}
         Format your response as a JSON object with:
@@ -158,14 +157,11 @@ class RDSClient:
         }}
         """
 
-        # Call LLM using LiteLLM
-        print(f"Prompt: {prompt}")
         response = await self.llm_call(prompt)
         if not response:
             logger.error("No response from LLM")
             return None
         
-        # Parse the JSON response
         try:
             result = json.loads(response)
             rds_instance = result.get('rds_instance')
@@ -182,22 +178,18 @@ class RDSClient:
         if not target or not candidates:
             return None
         
-        # Convert to lowercase for case-insensitive matching
         target = target.lower()
 
-        # Exact match check
         for candidate in candidates:
             if candidate.lower() == target:
                 return candidate
             
-        # Partial match check (contains)
         partial_matches = [
             c for c in candidates
             if target in c.lower() or c.lower() in target
         ]
         
         if partial_matches:
-            # Sort by length to prefer shorter, more precise matches
             partial_matches.sort(key=len)
             return partial_matches[0]
         
@@ -232,10 +224,8 @@ class RDSClient:
                 response_format={"type": "json_object"}
             )
 
-            # Extract the response content
             response_content = response.choices[0].message.content
             
-            # Validate that the response is valid JSON
             try:
                 json.loads(response_content)
                 return response_content
