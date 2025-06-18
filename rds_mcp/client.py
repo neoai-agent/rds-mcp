@@ -51,6 +51,14 @@ class AWSClientManager:
                         'aws_access_key_id': access_key,    
                         'aws_secret_access_key': secret_key
                     })
+                else:
+                    client_kwargs.update({
+                        'config': boto3.session.Config(
+                            user_agent_extra='rds-mcp/1.0',
+                            connect_timeout=10,
+                            read_timeout=30
+                        )
+                    })
                 
                 self._rds = boto3.client('rds', **client_kwargs)
             except Exception as e:
@@ -71,6 +79,14 @@ class AWSClientManager:
                     client_kwargs.update({
                         'aws_access_key_id': access_key,
                         'aws_secret_access_key': secret_key
+                    })
+                else:
+                    client_kwargs.update({
+                        'config': boto3.session.Config(
+                            user_agent_extra='rds-mcp/1.0',
+                            connect_timeout=10,
+                            read_timeout=30
+                        )
                     })
                 
                 self._cloudwatch = boto3.client('cloudwatch', **client_kwargs)
