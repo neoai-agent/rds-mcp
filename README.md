@@ -8,10 +8,10 @@ Install directly from GitHub using pipx:
 
 ```bash
 # Install
-pipx install git+https://github.com/yourusername/rds-mcp.git
+pipx install git+https://github.com/neoai-agent/rds-mcp.git
 
 # Or run without installation
-pipx run git+https://github.com/yourusername/rds-mcp.git
+pipx run git+https://github.com/neoai-agent/rds-mcp.git
 ```
 
 ## Quick Start
@@ -82,7 +82,7 @@ await get_instance_performance_metrics(
 
 For development setup:
 ```bash
-git clone https://github.com/yourusername/rds-mcp.git
+git clone https://github.com/neoai-agent/rds-mcp.git
 cd rds-mcp
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
