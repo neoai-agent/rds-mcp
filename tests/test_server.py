@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime, timezone, timedelta
 import json
-from rds_mcp.server import RDSCMPServer
+from rds_mcp.server import RDSMCPServer
 from rds_mcp.client import RDSClient, AWSClientManager, RDSClientConfig
 
 # Test data
@@ -75,7 +75,7 @@ def mock_rds_client(mock_aws_client_manager):
 @pytest.fixture
 def rds_mcp_server(mock_rds_client):
     with patch('rds_mcp.server.RDSClient', return_value=mock_rds_client):
-        server = RDSCMPServer(
+        server = RDSMCPServer(
             model='gpt-3.5-turbo',
             openai_api_key='test-openai-key',
             aws_client_manager=mock_rds_client.aws_client_manager

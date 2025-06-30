@@ -5,7 +5,7 @@ import argparse
 import logging
 from typing import Optional
 from dotenv import load_dotenv
-from rds_mcp.server import RDSCMPServer
+from rds_mcp.server import RDSMCPServer
 from rds_mcp.client import RDSClientConfig, AWSClientManager
 
 # Load environment variables from .env file if it exists
@@ -13,7 +13,7 @@ load_dotenv()
 
 logger = logging.getLogger('rds_mcp')
 
-async def perform_async_initialization(server_obj: RDSCMPServer) -> None:
+async def perform_async_initialization(server_obj: RDSMCPServer) -> None:
     """Initialize AWS clients asynchronously."""
     try:
         # AWS clients are now initialized by AWSClientManager in the constructor
@@ -59,7 +59,7 @@ def main() -> int:
         )
 
         # Create server instance
-        server = RDSCMPServer(
+        server = RDSMCPServer(
             model=args.model,
             openai_api_key=args.openai_api_key,
             aws_client_manager=aws_client_manager

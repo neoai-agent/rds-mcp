@@ -31,11 +31,11 @@ setup(
     },
     python_requires=">=3.8",
     author="RDS MCP Contributors",
-    author_email="your.email@example.com",
+    author_email="neoai.agent@gmail.com",
     description="A Model-Controlled Panel for managing Amazon RDS instances",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/rds-mcp",
+    url="https://github.com/neoai-agent/rds-mcp",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",

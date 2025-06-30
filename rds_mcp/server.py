@@ -12,7 +12,7 @@ logging.basicConfig(
 logger = logging.getLogger('rds_mcp')
 
 
-class RDSCMPServer:
+class RDSMCPServer:
     def __init__(self, model: str, openai_api_key: str, aws_client_manager: AWSClientManager):
         self.mcp = FastMCP("rds")
         self.client = RDSClient(model=model, openai_api_key=openai_api_key, aws_client_manager=aws_client_manager)
@@ -22,6 +22,7 @@ class RDSCMPServer:
         self.mcp.tool()(self.get_db_info)
         self.mcp.tool()(self.get_database_metrics)
         self.mcp.tool()(self.get_database_queries)
+        self.mcp.tool()(self.get_rds_performance_insights)
 
     def run_mcp_blocking(self):
         """
@@ -61,10 +62,10 @@ class RDSCMPServer:
         }
 
     #Get RDS DB metrics
-    async def get_database_metrics(self, database_name: str):
+    async def get_database_metrics(self, database_name: str, granularity: int = 60):
         """
         Get key RDS metrics including CPU, memory, connections, and storage
-        Returns metrics for the last 60 minutes
+        Returns metrics for the last 30 minutes by default
         """
         try:
             matching_instance = await self.client.find_matching_rds_instances(database_name)
@@ -99,12 +100,12 @@ class RDSCMPServer:
                                         {'Name': 'DBInstanceIdentifier', 'Value': database_name}
                                     ]
                                 },
-                                'Period': 300,
+                                'Period': granularity,
                                 'Stat': metric['stat']
                             }
                         }
                     ],
-                    StartTime=datetime.now(timezone.utc) - timedelta(minutes=60),
+                    StartTime=datetime.now(timezone.utc) - timedelta(minutes=30),
                     EndTime=datetime.now(timezone.utc)
                 )
                 
