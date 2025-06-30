@@ -22,7 +22,6 @@ class RDSMCPServer:
         self.mcp.tool()(self.get_db_info)
         self.mcp.tool()(self.get_database_metrics)
         self.mcp.tool()(self.get_database_queries)
-        self.mcp.tool()(self.get_rds_performance_insights)
 
     def run_mcp_blocking(self):
         """
