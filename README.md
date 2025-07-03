@@ -72,7 +72,7 @@ await get_database_queries(
 
 4. Get instance performance metrics:
 ```python
-await get_instance_performance_metrics(
+await get_top_rds_load(
     database_name="your-db-instance",
     time_range_minutes=30
 )
