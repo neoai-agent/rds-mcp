@@ -10,12 +10,14 @@ MOCK_RDS_INSTANCES = {
             'DBInstanceIdentifier': 'test-db-1',
             'Engine': 'mysql',
             'DBInstanceStatus': 'available',
+            'DbiResourceId': 'db-ABCD1234TEST',
             'Endpoint': {'Address': 'test-db-1.xxxxx.region.rds.amazonaws.com', 'Port': 3306}
         },
         {
             'DBInstanceIdentifier': 'prod-db-1',
             'Engine': 'postgres',
             'DBInstanceStatus': 'available',
+            'DbiResourceId': 'db-ABCD1234PROD',
             'Endpoint': {'Address': 'prod-db-1.xxxxx.region.rds.amazonaws.com', 'Port': 5432}
         }
     ]
