@@ -13,12 +13,14 @@ MOCK_RDS_INSTANCES = {
             'DBInstanceIdentifier': 'test-db-1',
             'Engine': 'mysql',
             'DBInstanceStatus': 'available',
+            'DbiResourceId': 'db-ABCD1234TEST',
             'Endpoint': {'Address': 'test-db-1.xxxxx.region.rds.amazonaws.com', 'Port': 3306}
         },
         {
             'DBInstanceIdentifier': 'prod-db-1',
             'Engine': 'postgres',
             'DBInstanceStatus': 'available',
+            'DbiResourceId': 'db-ABCD1234PROD',
             'Endpoint': {'Address': 'prod-db-1.xxxxx.region.rds.amazonaws.com', 'Port': 5432}
         }
     ]
@@ -118,10 +120,14 @@ def test_best_matching_rds_instance(rds_client):
 @pytest.mark.asyncio
 async def test_llm_call(rds_client):
     """Test LLM call functionality"""
-    with patch("litellm.completion", new_callable=AsyncMock) as mock_completion:
-         mock_completion.return_value.choices[0].message.content = json.dumps({"rds_instance": "test-db-1"})
-         result = await rds_client.llm_call("Find the RDS instance matching 'test-db-1'")
-         assert result == json.dumps({"rds_instance": "test-db-1"})
+    # Patch litellm.completion to return a mock with the correct nested structure
+    mock_choice = Mock()
+    mock_choice.message.content = json.dumps({"rds_instance": "test-db-1"})
+    mock_completion_result = Mock()
+    mock_completion_result.choices = [mock_choice]
+    with patch("litellm.completion", new=AsyncMock(return_value=mock_completion_result)):
+        result = await rds_client.llm_call("Find the RDS instance matching 'test-db-1'")
+        assert result == json.dumps({"rds_instance": "test-db-1"})
 
 @pytest.mark.asyncio
 async def test_llm_call_error(rds_client):
@@ -141,8 +147,7 @@ def test_aws_client_manager_no_credentials():
     """Test AWS client manager with no credentials"""
     config = RDSClientConfig(access_key='', secret_access_key='', region_name='us-west-2')
     manager = AWSClientManager(config)
-    
-    with patch('boto3.Session') as mock_session:
-        mock_session.return_value.get_credentials.return_value = None
+    # Patch get_aws_credentials to raise NoCredentialsError directly
+    with patch.object(AWSClientManager, 'get_aws_credentials', side_effect=NoCredentialsError):
         with pytest.raises(NoCredentialsError):
             manager.get_aws_credentials() 

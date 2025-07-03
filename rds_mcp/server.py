@@ -22,6 +22,7 @@ class RDSMCPServer:
         self.mcp.tool()(self.get_db_info)
         self.mcp.tool()(self.get_database_metrics)
         self.mcp.tool()(self.get_database_queries)
+        self.mcp.tool()(self.get_top_rds_load)
 
     def run_mcp_blocking(self):
         """
@@ -64,7 +65,7 @@ class RDSMCPServer:
     async def get_database_metrics(self, database_name: str, granularity: int = 60):
         """
         Get key RDS metrics including CPU, memory, connections, and storage
-        Returns metrics for the last 30 minutes by default
+        Returns metrics for the last 30 minutes by default.
         """
         try:
             matching_instance = await self.client.find_matching_rds_instances(database_name)
@@ -362,3 +363,73 @@ class RDSMCPServer:
         except Exception as e:
             logger.error(f"Error getting database queries: {str(e)}")
             return {"status": "error", "message": str(e)}
+
+    #Get RDS Performance Insights top load metrics for the last 30 minutes by default
+    async def get_top_rds_load(self, database_name: str, minutes: int = 30, max_results: int = 5):
+        """
+        Retrieve the top SQL statements, users, and wait events by average active sessions (AAS) 
+        for an RDS instance over a specified time window.
+
+        Args:
+            database_name (str): The RDS DB resource identifier.
+            minutes (int): The time window (in minutes) to analyze. Default is 30.
+            max_results (int): Maximum number of results to return per group. Default is 5.
+
+        Returns:
+            dict: A dictionary with keys 'SQL Statement', 'User', and 'Wait Event', each mapping 
+                to a sorted list of (dimension_value, load) values.
+        """
+        db_info = await self.get_db_info(database_name)
+        if not db_info:
+            return {"status": "error", "message": "No matching RDS instance found"}
+        
+        db_identifier = db_info['DbiResourceId'] 
+        
+        start_time = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+        end_time = datetime.now(timezone.utc)
+        
+        top_sql_groupby = {
+            "Group": "db.sql",
+            "Dimensions": ["db.sql.statement"]
+        }
+        top_user_groupby = {
+            "Group": "db.user",
+            "Dimensions": ["db.user.name"]
+        }
+        top_waits_groupby = {
+            "Group": "db.wait_event",
+            "Dimensions": ["db.wait_event.name"]
+        }
+        group_labels = {
+            "db.sql": "Top SQL",
+            "db.user": "Top Users",
+            "db.wait_event": "Top Waits"
+        }
+        results = {}
+
+        for groupby in [top_sql_groupby, top_user_groupby, top_waits_groupby]:
+            response = self.client.pi_client.describe_dimension_keys(
+                ServiceType="RDS",
+                Identifier=db_identifier,
+                StartTime=start_time,
+                EndTime=end_time,
+                Metric="db.load.avg", 
+                GroupBy=groupby,
+                MaxResults=max_results
+            )
+            group = groupby["Group"]
+            dimensions = groupby["Dimensions"]
+            label = group_labels[group]
+            rows = []
+            for item in response.get("Keys", []):
+                dim_value = item["Dimensions"].get(dimensions[0], "Unknown")
+                total = item.get("Total", 0)
+                if total is not None:
+                    total = round(total, 2)
+                rows.append({
+                    "label": dim_value,
+                    "total": total
+                })
+            rows.sort(key=lambda x: x["total"], reverse=True)
+            results[label] = rows
+        return results

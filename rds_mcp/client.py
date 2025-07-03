@@ -29,6 +29,7 @@ class AWSClientManager:
         self._rds = None
         self._elbv2 = None
         self._cloudwatch = None
+        self._pi = None
 
     def get_aws_credentials(self):
         """Get AWS credentials with proper error handling"""
@@ -94,6 +95,35 @@ class AWSClientManager:
                 logger.error(f"Failed to create CloudWatch client: {str(e)}")
                 raise
         return self._cloudwatch
+    
+    def get_pi_client(self, region_name=None):
+        """Get or create Performance Insights client."""
+        if not self._pi:
+            try:
+                access_key, secret_key = self.get_aws_credentials()
+                client_kwargs = {
+                    'region_name': region_name or self.config.region_name
+                }
+                
+                if access_key and secret_key:
+                    client_kwargs.update({
+                        'aws_access_key_id': access_key,
+                        'aws_secret_access_key': secret_key
+                    })
+                else:
+                    client_kwargs.update({
+                        'config': boto3.session.Config(
+                            user_agent_extra='rds-mcp/1.0',
+                            connect_timeout=10,
+                            read_timeout=30
+                        )
+                    })
+                
+                self._pi = boto3.client('pi', **client_kwargs)
+            except Exception as e:
+                logger.error(f"Failed to create Performance Insights client: {str(e)}")
+                raise
+        return self._pi
 
 class RDSClient:
     """Client for interacting with AWS RDS services and cloudwatch metrics for rds services"""
@@ -120,7 +150,8 @@ class RDSClient:
         """Initialize the RDS client and cloudwatch client."""
         self.rds_client = self.aws_client_manager.get_rds_client()
         self.cloudwatch_client = self.aws_client_manager.get_cloudwatch_client()
-
+        self.pi_client = self.aws_client_manager.get_pi_client()
+        
     async def get_available_rds_instances(self):
         current_time = datetime.now(timezone.utc)
 

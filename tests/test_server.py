@@ -14,7 +14,7 @@ MOCK_DB_INFO = {
             'Address': 'test-db-1.xxxxx.region.rds.amazonaws.com',
             'Port': 3306
         },
-        'DbiResourceId': 'db-12345',
+        'DbiResourceId': 'db-ABCD1234TEST',
         'AllocatedStorage': 100
     }]
 }
@@ -91,7 +91,7 @@ async def test_get_db_info(rds_mcp_server):
     assert result['DBInstanceIdentifier'] == 'test-db-1'
     assert result['DBInstanceEndpoint'] == 'test-db-1.xxxxx.region.rds.amazonaws.com'
     assert result['DBInstancePort'] == 3306
-    assert result['DbiResourceId'] == 'db-12345'
+    assert result['DbiResourceId'] == 'db-ABCD1234TEST'
     assert result['AllocatedStorage'] == 100
 
 @pytest.mark.asyncio
@@ -205,3 +205,4 @@ def test_server_initialization(rds_mcp_server):
     assert callable(rds_mcp_server.get_db_info)
     assert callable(rds_mcp_server.get_database_metrics)
     assert callable(rds_mcp_server.get_database_queries) 
+    assert callable(rds_mcp_server.get_top_rds_load)
