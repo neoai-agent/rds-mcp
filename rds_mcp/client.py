@@ -3,8 +3,9 @@ import boto3
 import logging
 import json
 from datetime import datetime, timezone
-from litellm import completion
+from litellm import acompletion
 from dataclasses import dataclass
+from botocore.config import Config
 
 # Configure logging
 logging.basicConfig(
@@ -27,7 +28,6 @@ class AWSClientManager:
     def __init__(self, config: RDSClientConfig):
         self.config = config
         self._rds = None
-        self._elbv2 = None
         self._cloudwatch = None
         self._pi = None
 
@@ -38,91 +38,38 @@ class AWSClientManager:
             return None, None
         return self.config.access_key, self.config.secret_access_key
     
-    def get_rds_client(self, region_name=None):
+    def _create_client(self, service_name, region_name=None):
+        access_key, secret_key = self.get_aws_credentials()
+        client_kwargs = {'region_name': region_name or self.config.region_name}
+        if access_key and secret_key:
+            client_kwargs.update({
+                'aws_access_key_id': access_key,
+                'aws_secret_access_key': secret_key
+            })
+        else:
+            client_kwargs['config'] = Config(
+                user_agent_extra='ecs-mcp/1.0',
+                connect_timeout=10,
+                read_timeout=30
+            )
+        return boto3.client(service_name, **client_kwargs)
+    
+    def get_rds_client(self):
         """Get or create RDS client."""
         if not self._rds:
-            try:
-                access_key, secret_key = self.get_aws_credentials()
-                client_kwargs = {
-                    'region_name': region_name or self.config.region_name
-                }
-                
-                if access_key and secret_key:
-                    client_kwargs.update({
-                        'aws_access_key_id': access_key,    
-                        'aws_secret_access_key': secret_key
-                    })
-                else:
-                    client_kwargs.update({
-                        'config': boto3.session.Config(
-                            user_agent_extra='rds-mcp/1.0',
-                            connect_timeout=10,
-                            read_timeout=30
-                        )
-                    })
-                
-                self._rds = boto3.client('rds', **client_kwargs)
-            except Exception as e:
-                logger.error(f"Failed to create RDS client: {str(e)}")
-                raise
+            self._rds = self._create_client('rds')
         return self._rds
 
-    def get_cloudwatch_client(self, region_name=None):
+    def get_cloudwatch_client(self):
         """Get or create CloudWatch client."""
         if not self._cloudwatch:
-            try:
-                access_key, secret_key = self.get_aws_credentials()
-                client_kwargs = {
-                    'region_name': region_name or self.config.region_name
-                }
-                
-                if access_key and secret_key:
-                    client_kwargs.update({
-                        'aws_access_key_id': access_key,
-                        'aws_secret_access_key': secret_key
-                    })
-                else:
-                    client_kwargs.update({
-                        'config': boto3.session.Config(
-                            user_agent_extra='rds-mcp/1.0',
-                            connect_timeout=10,
-                            read_timeout=30
-                        )
-                    })
-                
-                self._cloudwatch = boto3.client('cloudwatch', **client_kwargs)
-            except Exception as e:
-                logger.error(f"Failed to create CloudWatch client: {str(e)}")
-                raise
+            self._cloudwatch = self._create_client('cloudwatch')
         return self._cloudwatch
     
-    def get_pi_client(self, region_name=None):
+    def get_pi_client(self):
         """Get or create Performance Insights client."""
         if not self._pi:
-            try:
-                access_key, secret_key = self.get_aws_credentials()
-                client_kwargs = {
-                    'region_name': region_name or self.config.region_name
-                }
-                
-                if access_key and secret_key:
-                    client_kwargs.update({
-                        'aws_access_key_id': access_key,
-                        'aws_secret_access_key': secret_key
-                    })
-                else:
-                    client_kwargs.update({
-                        'config': boto3.session.Config(
-                            user_agent_extra='rds-mcp/1.0',
-                            connect_timeout=10,
-                            read_timeout=30
-                        )
-                    })
-                
-                self._pi = boto3.client('pi', **client_kwargs)
-            except Exception as e:
-                logger.error(f"Failed to create Performance Insights client: {str(e)}")
-                raise
+            self._pi = self._create_client('pi')
         return self._pi
 
 class RDSClient:
@@ -185,19 +132,19 @@ class RDSClient:
         """
         Find the correct RDS instance name using LLM for intelligent matching.
         """
-        # Create a cache key based on the input parameters
         cache_key = f"{database_name}"
 
-        # Check if we have a cached result
         if cache_key in self._name_matching_cache:
             logger.info(f"Using cached rds instances result for {cache_key}")
             return self._name_matching_cache[cache_key]
         
         available_instances = await self.get_available_rds_instances()
-        rds_instances = available_instances['rds_instances']
+        rds_instances = available_instances.get('rds_instances', [])
 
         prompt = f"""
-        Given the database name: {database_name}, please find the most likely RDS instance name from the following list: {rds_instances}
+        You are an assistant that matches input database names to AWS RDS instance identifiers.
+        Given a user-provided database name: "{database_name}", find the best matching RDS instance name from this list:
+        {rds_instances}
         Format your response as a JSON object with:
         {{
             "rds_instance": "best matching rds instance name or null"
@@ -216,9 +163,14 @@ class RDSClient:
                 self._name_matching_cache[cache_key] = rds_instance
                 return rds_instance
             else:
-                return None
+                logger.warning(f"LLM suggested invalid or filtered-out instance: {rds_instance}")
         except Exception as e:
             logger.error(f"Error parsing JSON response: {str(e)}")
+        logger.info("Falling back to basic matching")
+        fallback = self.best_matching_rds_instance(database_name, rds_instances)
+        if fallback:
+            self._name_matching_cache[cache_key] = fallback
+            return fallback
 
     def best_matching_rds_instance(self, target: str = None, candidates: list = None):
         """Basic fallback matching function when LLM is not available"""
@@ -245,40 +197,21 @@ class RDSClient:
     async def llm_call(self, prompt: str) -> str:
         """
         Call LLM using LiteLLM to find matching names.
-        
-        Args:
-            prompt (str): The prompt to send to the LLM
-            
-        Returns:
-            str: JSON string containing the LLM's response with rds_instance
         """
         try:
-            response = completion(
+            response = await acompletion(
                 model=self.model,
                 api_key=self.openai_api_key,
                 messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a helpful assistant that finds the best matching RDS instance name. Always respond with valid JSON."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
+                    {"role": "system", "content": "You are a helpful assistant that finds the best matching RDS instance name. Always respond with valid JSON."},
+                    {"role": "user","content": prompt}
                 ],
                 max_tokens=500,
                 temperature=0.1,
                 response_format={"type": "json_object"}
             )
 
-            response_content = response.choices[0].message.content
-            
-            try:
-                json.loads(response_content)
-                return response_content
-            except json.JSONDecodeError as e:
-                logger.error(f"Error parsing JSON response: {str(e)}")
-                return None
+            return response.choices[0].message.content
         except Exception as e:
-            logger.error(f"Error llm calling: {str(e)}")
-            return None
+            logger.error(f"LLM call failed: {str(e)}")
+            return json.dumps({"rds_instance": None})
