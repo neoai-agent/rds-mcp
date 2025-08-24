@@ -61,7 +61,7 @@ def mock_aws_client_manager(mock_aws_config):
 def mock_rds_client(mock_aws_client_manager):
     """Shared RDS client fixture with mocked services"""
     client = RDSClient(
-        model='gpt-3.5-turbo',
+        model='openai/gpt-4o-mini',
         openai_api_key='test-openai-key',
         aws_client_manager=mock_aws_client_manager
     )

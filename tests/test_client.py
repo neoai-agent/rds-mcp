@@ -50,7 +50,7 @@ def mock_aws_client_manager(mock_aws_config):
 @pytest.fixture
 def rds_client(mock_aws_client_manager):
     return RDSClient(
-        model='gpt-3.5-turbo',
+        model='openai/gpt-4o-mini',
         openai_api_key='test-openai-key',
         aws_client_manager=mock_aws_client_manager
     )
@@ -125,14 +125,14 @@ async def test_llm_call(rds_client):
     mock_choice.message.content = json.dumps({"rds_instance": "test-db-1"})
     mock_completion_result = Mock()
     mock_completion_result.choices = [mock_choice]
-    with patch("litellm.completion", new=AsyncMock(return_value=mock_completion_result)):
+    with patch("rds_mcp.client.acompletion", new=AsyncMock(return_value=mock_completion_result)):
         result = await rds_client.llm_call("Find the RDS instance matching 'test-db-1'")
         assert result == json.dumps({"rds_instance": "test-db-1"})
 
 @pytest.mark.asyncio
 async def test_llm_call_error(rds_client):
     """Test LLM call error handling"""
-    with patch('litellm.completion', side_effect=Exception("API Error")):
+    with patch('rds_mcp.client.acompletion', side_effect=Exception("API Error")):
         result = await rds_client.llm_call("test prompt")
         assert result is None
 

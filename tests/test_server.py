@@ -65,7 +65,7 @@ def mock_aws_client_manager(mock_aws_config):
 @pytest.fixture
 def mock_rds_client(mock_aws_client_manager):
     client = RDSClient(
-        model='gpt-3.5-turbo',
+        model='openai/gpt-4o-mini',
         openai_api_key='test-openai-key',
         aws_client_manager=mock_aws_client_manager
     )
@@ -76,7 +76,7 @@ def mock_rds_client(mock_aws_client_manager):
 def rds_mcp_server(mock_rds_client):
     with patch('rds_mcp.server.RDSClient', return_value=mock_rds_client):
         server = RDSMCPServer(
-            model='gpt-3.5-turbo',
+            model='openai/gpt-4o-mini',
             openai_api_key='test-openai-key',
             aws_client_manager=mock_rds_client.aws_client_manager
         )

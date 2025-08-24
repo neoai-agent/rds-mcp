@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from litellm import acompletion
 from dataclasses import dataclass
 from botocore.config import Config
+from backoff import on_exception, expo
 
 # Configure logging
 logging.basicConfig(
@@ -194,6 +195,7 @@ class RDSClient:
         
         return None
 
+    @on_exception(expo, Exception, max_time=30)
     async def llm_call(self, prompt: str) -> str:
         """
         Call LLM using LiteLLM to find matching names.
@@ -214,4 +216,4 @@ class RDSClient:
             return response.choices[0].message.content
         except Exception as e:
             logger.error(f"LLM call failed: {str(e)}")
-            return json.dumps({"rds_instance": None})
+            return None
